@@ -1,0 +1,308 @@
+module mojo_top (
+    input clk,              // 50MHz clock
+    input rst_n,            // reset button (active low)
+    output led [8],         // 8 user controllable LEDs
+    input cclk,             // configuration clock, AVR ready when high
+    output spi_miso,        // AVR SPI MISO
+    input spi_ss,           // AVR SPI Slave Select
+    input spi_mosi,         // AVR SPI MOSI
+    input spi_sck,          // AVR SPI Clock
+    output spi_channel [4], // AVR general purpose pins (used by default to select ADC channel)
+    input avr_tx,           // AVR TX (FPGA RX)
+    output avr_rx,          // AVR RX (FPGA TX)
+    input avr_rx_busy,      // AVR RX buffer full
+    output io_led [3][8],   // LEDs on IO Shield
+    output io_seg [8],      // 7-segment LEDs on IO Shield
+    output io_sel [4],      // Digit select on IO Shield
+    input io_button [5],    // 5 buttons on IO Shield
+    input io_dip [3][8],    // DIP switches on IO Shield
+    output a, 
+    output b, 
+    output ci, 
+    input s, 
+    input co
+  ) {
+  
+  sig rst;  // reset signal
+  //flip-flop with 27bits wide (adds delay to the signals)
+  dff counter[28](.clk(clk), .rst(rst)); //default value = 0
+  
+  .clk(clk) {
+    // The reset signal to the FPGA clock is synchronised by the reset conditioner.
+    // This ensures the entire FPGA comes out of reset at the same time.
+    reset_conditioner reset_cond;
+  .rst(rst) {
+      
+      fsm state = {IDLE, CASE1, CASE2, CASE3, CASE4, CASE5, CASE6, CASE7, CASE8, MANUAL};
+      blinker myBlinker; // Call blinker module
+   }    
+  }
+  
+  always {
+    reset_cond.in = ~rst_n; // input raw inverted reset signal
+    rst = reset_cond.out;   // conditioned reset
+    spi_miso = bz;          // not using SPI
+    spi_channel = bzzzz;    // not using flags
+    avr_rx = bz;            // not using serial port
+    a = 0;                  // Assign the default output (a, b, ci) from FPGA  
+    b = 0;
+    ci = 0;
+    io_led = 3x{{8h00}};    // turn io_LEDs off
+    led = 8h00;             // turn base LEDs off
+    counter.d = counter.q + 1;
+    io_seg = 8hff;          // turn segments off
+    io_sel = 4hf;           // select no digits
+
+    case(state.q) {
+
+      state.IDLE:
+        a = 0;
+        b = 0;
+        ci = 0;
+        if(io_button[1] == 1) {  // When centre button pressed, auto test starts
+          state.d = state.CASE1;
+          counter.d = 0;          
+        }
+        if(io_button[0] == 1) {  // When top button pressed, manual test starts
+          state.d = state.MANUAL;
+          counter.d = 0;          
+        }
+        
+                            
+        
+      state.CASE1:
+        a = 0;
+        b = 0;
+        ci = 0;
+        led[0] = 1;     // First element of base led lights up when CASE1 is being tested
+        if (s == 0 & co == 0) { 
+            io_led[1] = 8h00;
+          } else {
+           led = 8x{myBlinker.blink}; // When error, blink LEDs
+        }
+        if(counter.q[27] == 1) {
+          state.d = state.CASE2;
+          counter.d = 0;          
+        }
+        
+        
+        
+      state.CASE2:
+        a = 0;
+        b = 0;
+        ci = 1;
+        led[1] = 1;     // Second element of base led lights up when CASE2 is being tested
+        if (s == 1 & co == 0) { 
+            io_led[0] = 8hFF;
+          } else {
+            led = 8x{myBlinker.blink}; // blink LEDs
+        }
+        if(counter.q[27] == 1) {
+          state.d = state.CASE3;
+          counter.d = 0;    
+        }
+        
+        
+        
+      state.CASE3:
+        a = 0;
+        b = 1;
+        ci = 0;
+        led[2] = 1;     // Third element of base led lights up when CASE3 is being tested
+        if (s == 1 & co == 0) {
+            io_led[1] = 8hFF;
+          } else {
+            led = 8x{myBlinker.blink}; // blink LEDs
+        }
+        if(counter.q[27] == 1) {
+          state.d = state.CASE4;
+          counter.d = 0;
+        }
+        
+        
+        
+      state.CASE4:
+        a = 0;
+        b = 1;
+        ci = 1;
+        led[3] = 1;     // Fourth element of base led lights up when CASE4 is being tested
+        if (s == 0 & co == 1) {
+            io_led[1] = 8hFF;
+            io_led[0] = 8hFF;
+          } else {
+            led = 8x{myBlinker.blink}; // blink LEDs
+        }
+        if(counter.q[27] == 1) {
+          state.d = state.CASE5;
+          counter.d = 0;
+        }
+        
+        
+        
+      state.CASE5:
+        a = 1;
+        b = 0;
+        ci = 0;
+        led[4] = 1;     // Fifth element of base led lights up when CASE5 is being tested
+        if (s == 1 & co == 0) {
+           io_led[2] = 8hFF;
+          } else {
+           led = 8x{myBlinker.blink}; // blink LEDs
+        }
+        if(counter.q[27] == 1) {
+          state.d = state.CASE6;
+          counter.d = 0;
+        }
+        
+        
+        
+      state.CASE6:
+        a = 1;
+        b = 0;
+        ci = 1;
+        led[5] = 1;     // Sixth element of base led lights up when CASE6 is being tested
+        if (s == 0 & co == 1) {
+            io_led[2] = 8hFF;
+            io_led[0] = 8hFF;
+          } else {
+            led = 8x{myBlinker.blink}; // blink LEDs
+        }
+        if(counter.q[27] == 1) {
+          state.d = state.CASE7;
+          counter.d = 0;
+        }
+        
+        
+        
+      state.CASE7:
+        a = 1;
+        b = 1;
+        ci = 0;
+        led[6] = 1;     // Seventh element of base led lights up when CASE7 is being tested
+        if (s == 0 & co == 1) {
+            io_led[2] = 8hFF;
+            io_led[1] = 8hFF;
+          } else {
+            led = 8x{myBlinker.blink}; // blink LEDs
+        }
+        if(counter.q[27] == 1) { 
+          state.d = state.CASE8;
+          counter.d = 0;
+        }
+        
+        
+        
+      state.CASE8:
+        a = 1;
+        b = 1;
+        ci = 1;
+        led[7] = 1;      // Eighth element of base led lights up when CASE8 is being tested
+        if (s == 1 & co == 1) {
+            io_led[2] = 8hFF;
+            io_led[1] = 8hFF;
+            io_led[0] = 8hFF;
+          } else {
+            led = 8x{myBlinker.blink}; // blink LEDs
+        }
+        if (counter.q[27] == 1) {      // Returns to IDLE state when test ends
+          state.d = state.IDLE;
+          counter.d = 0;          
+        }
+         
+        
+       
+        state.MANUAL:
+        if (io_button[1] == 1) {   // When centre button pressed, returns to IDLE state
+          state.d = state.IDLE;
+          counter.d = 0;          
+        }
+        
+        // Assigning dip switches to the output a, b, ci          
+        a = io_dip[0][2];
+        b = io_dip[0][1];
+        ci = io_dip[0][0];
+        
+        
+        // Base led lights up when state changes to MANUAL
+        led = 8hff; 
+        
+        
+        // Designation of led light when a particular dip switch is on
+        if (io_dip[0][2]) {
+            io_led[2] = 8hFF;
+          }
+        if (io_dip[0][1]) {
+           io_led[1] = 8hFF;
+          }
+        if (io_dip[0][0]) {
+            io_led[0] = 8hFF;
+          }
+        
+        
+        // CASE1 for manual test
+        if (io_dip[0][2] == 0 &&  // a
+            io_dip[0][1] == 0 &&  // b
+            io_dip[0][0] == 0){   // ci
+          if (s != 0 || co != 0){
+            led = 8x{myBlinker.blink}; // Blink base LEDs when test fails
+          }
+        }
+        // CASE2 for manual test
+        if (io_dip[0][2] == 0 && // a
+            io_dip[0][1] == 0 && // b
+            io_dip[0][0] == 1){  // ci
+          if (s != 1 || co != 0){
+            led = 8x{myBlinker.blink}; // Blink base LEDs when test fails
+          }
+        }
+        // CASE3 for manual test
+        if (io_dip[0][2] == 0 && // a
+            io_dip[0][1] == 1 && // b 
+            io_dip[0][0] == 0){  // ci
+          if (s != 1 || co != 0){
+            led = 8x{myBlinker.blink}; // Blink base LEDs when test fails
+          }
+        }
+        // CASE4 for manual test
+        if (io_dip[0][2] == 0 && // a
+            io_dip[0][1] == 1 && // b
+            io_dip[0][0] == 1){  // ci
+          if (s != 0 || co != 1){
+            led = 8x{myBlinker.blink}; // Blink base LEDs when test fails
+          }
+        }
+        // CASE5 for manual test
+        if (io_dip[0][2] == 1 && // a
+            io_dip[0][1] == 0 && // b
+            io_dip[0][0] == 0){  // ci
+          if (s != 1 || co != 0){
+            led = 8x{myBlinker.blink}; // Blink base LEDs when test fails
+          }
+        }
+        // CASE6 for manual test
+        if (io_dip[0][2] == 1 && // a
+            io_dip[0][1] == 0 && // b
+            io_dip[0][0] == 1){  // ci
+          if (s != 0 || co != 1){
+            led = 8x{myBlinker.blink}; // Blink base LEDs when test fails
+          }
+        }
+        // CASE7 for manual test
+        if (io_dip[0][2] == 1 && // a
+            io_dip[0][1] == 1 && // b
+            io_dip[0][0] == 0){  // ci
+          if (s != 0 || co != 1){
+            led = 8x{myBlinker.blink}; // Blink base LEDs when test fails
+          }
+        }
+        // CASE8 for manual test
+        if (io_dip[0][2] == 1 && // a
+            io_dip[0][1] == 1 && // b
+            io_dip[0][0] == 1){  // ci
+          if (s != 1 || co != 1){
+            led = 8x{myBlinker.blink}; // Blink base LEDs when test fails
+          }
+        }         
+    }            
+  }
+}
